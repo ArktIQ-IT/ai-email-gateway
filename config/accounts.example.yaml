@@ -1,0 +1,25 @@
+api_keys:
+  - key_id: local-dev
+    key_hash: "$argon2id$v=19$m=65536,t=3,p=4$WnB1REdmY3g0QTVpc2RhUA$9wWcicPfaXTPA7mUnS4WLVu3P8M4wpji3BEMfbeUokQ"
+    accounts: ["domeneshop-main", "proton-bridge-local"]
+
+accounts:
+  domeneshop-main:
+    provider: domeneshop
+    imap_host: imap.domeneshop.no
+    imap_port: 993
+    imap_tls: ssl
+    imap_username: user@example.com
+    imap_password_env: DOMENESHOP_IMAP_PASSWORD
+    folders_read: ["INBOX"]
+    drafts_folder_default: Drafts
+
+  proton-bridge-local:
+    provider: proton_bridge
+    imap_host: host.docker.internal
+    imap_port: 1143
+    imap_tls: starttls
+    imap_username: bridge-user
+    imap_password_env: PROTON_BRIDGE_PASSWORD
+    folders_read: ["INBOX", "Archive"]
+    drafts_folder_default: Drafts
