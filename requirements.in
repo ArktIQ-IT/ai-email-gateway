@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+pydantic-settings
+pyyaml
+argon2-cffi
+imapclient
+python-dateutil
+email-validator
