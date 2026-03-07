@@ -14,7 +14,11 @@ from app.models import Job, JobStatus
 router = APIRouter(prefix="/v1/jobs", tags=["jobs"])
 
 
-@router.get("/{job_id}")
+@router.get(
+    "/{job_id}",
+    summary="Get job status",
+    description="Fetch current status and result/error payload for a queued/running/completed job.",
+)
 def get_job(job_id: str, ctx: AuthContext = Depends(get_auth_context), db: Session = Depends(get_db)):
     job = db.get(Job, job_id)
     if not job:
@@ -37,7 +41,11 @@ def get_job(job_id: str, ctx: AuthContext = Depends(get_auth_context), db: Sessi
     return response
 
 
-@router.get("/{job_id}/wait")
+@router.get(
+    "/{job_id}/wait",
+    summary="Wait for job completion",
+    description="Long-poll for up to timeout seconds until the job reaches terminal state.",
+)
 async def wait_job(
     job_id: str,
     timeout: int = Query(default=20, ge=1, le=120),

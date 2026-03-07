@@ -46,10 +46,13 @@ class MessageIndex(Base):
     message_id_header: Mapped[str | None] = mapped_column(String(512), nullable=True)
     size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     flags: Mapped[str | None] = mapped_column(Text, nullable=True)
+    body_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    direction: Mapped[str] = mapped_column(String(16), default="incoming")
 
     __table_args__ = (
         UniqueConstraint("account_id", "folder", "uidvalidity", "uid", name="uq_msg_uid"),
         Index("ix_message_index_acc_folder_internal_date", "account_id", "folder", "internal_date"),
+        Index("ix_message_index_acc_internal_date", "account_id", "internal_date"),
     )
 
 

@@ -11,8 +11,13 @@ accounts:
     imap_tls: ssl
     imap_username: user@example.com
     imap_password_env: DOMENESHOP_IMAP_PASSWORD
-    folders_read: ["INBOX"]
+    folders_read: ["INBOX", "SENT"]
     drafts_folder_default: Drafts
+    auto_sync_enabled: true
+    auto_sync_interval_minutes: 15
+    auto_sync_lookback_minutes: 30
+    auto_sync_include_subfolders: true
+    auto_sync_limit_per_folder: 500
 
   proton-bridge-local:
     provider: proton_bridge
@@ -23,3 +28,8 @@ accounts:
     imap_password_env: PROTON_BRIDGE_PASSWORD
     folders_read: ["INBOX", "Archive"]
     drafts_folder_default: Drafts
+    auto_sync_enabled: true
+    auto_sync_interval_minutes: 15
+    auto_sync_lookback_minutes: 30
+    auto_sync_include_subfolders: true
+    auto_sync_limit_per_folder: 500

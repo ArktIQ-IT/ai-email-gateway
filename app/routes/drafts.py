@@ -12,23 +12,27 @@ router = APIRouter(prefix="/v1/accounts", tags=["drafts"])
 
 
 class Attachment(BaseModel):
-    filename: str
-    mime_type: str
-    content_base64: str
+    filename: str = Field(description="Attachment filename.")
+    mime_type: str = Field(description="Attachment MIME type, e.g. application/pdf.")
+    content_base64: str = Field(description="Attachment content as base64 string.")
 
 
 class DraftCreateRequest(BaseModel):
-    draft_folder: str | None = None
-    to: list[str] = Field(default_factory=list)
-    cc: list[str] = Field(default_factory=list)
-    bcc: list[str] = Field(default_factory=list)
-    subject: str = ""
-    text_body: str
-    html_body: str | None = None
-    attachments: list[Attachment] = Field(default_factory=list)
+    draft_folder: str | None = Field(default=None, description="Target draft folder. Uses account default when omitted.")
+    to: list[str] = Field(default_factory=list, description="To recipients.")
+    cc: list[str] = Field(default_factory=list, description="CC recipients.")
+    bcc: list[str] = Field(default_factory=list, description="BCC recipients.")
+    subject: str = Field(default="", description="Draft subject.")
+    text_body: str = Field(description="Plain-text body (required).")
+    html_body: str | None = Field(default=None, description="Optional HTML body.")
+    attachments: list[Attachment] = Field(default_factory=list, description="Optional attachments.")
 
 
-@router.post("/{account_id}/drafts")
+@router.post(
+    "/{account_id}/drafts",
+    summary="Create IMAP draft",
+    description="Create a draft email in the account draft folder via IMAP APPEND.",
+)
 def drafts_create(account_id: str, req: DraftCreateRequest, ctx: AuthContext = Depends(get_auth_context)):
     validate_account_access(ctx, account_id)
     cfg = load_accounts_config()

@@ -1,0 +1,11 @@
+# pip-audit ignore list
+#
+# One vulnerability ID or alias per line, for example:
+# GHSA-xxxx-xxxx-xxxx
+# CVE-2025-12345
+#
+# Keep this list as small and temporary as possible.
+# Add a short reason and expected removal date in PR description when adding entries.
+#
+# Example (disabled):
+# GHSA-2c2j-9gv5-cj73

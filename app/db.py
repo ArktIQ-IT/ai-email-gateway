@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.config import Settings
@@ -21,3 +21,20 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def ensure_sqlite_schema_compat() -> None:
+    if not settings.database_url.startswith("sqlite"):
+        return
+
+    with engine.begin() as conn:
+        existing_cols = {
+            row[1]
+            for row in conn.execute(text("PRAGMA table_info('message_index')")).fetchall()
+        }
+        if not existing_cols:
+            return
+        if "body_text" not in existing_cols:
+            conn.execute(text("ALTER TABLE message_index ADD COLUMN body_text TEXT"))
+        if "direction" not in existing_cols:
+            conn.execute(text("ALTER TABLE message_index ADD COLUMN direction VARCHAR(16) DEFAULT 'incoming'"))

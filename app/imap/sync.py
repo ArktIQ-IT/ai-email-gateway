@@ -8,8 +8,12 @@ from email.header import decode_header, make_header
 from email.message import Message
 from typing import Any
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from app.config import AccountConfig, Settings
 from app.imap.client import imap_connection
+from app.models import MessageIndex
 
 
 SAFE_HEADERS = {"from", "to", "cc", "subject", "message-id", "date"}
@@ -124,3 +128,163 @@ def list_messages(
                     item["attachments"] = attachments
             messages.append(item)
     return {"messages": messages, "count": len(messages), "account_id": account_id, "folder": folder, "since": since.isoformat(), "until": until.isoformat()}
+
+
+def _normalize_dt(value: datetime | None) -> datetime:
+    if value is None:
+        return datetime.now(timezone.utc).replace(tzinfo=None)
+    if value.tzinfo is not None:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
+
+
+def _decode_address_header(msg: Message, key: str) -> str | None:
+    raw = msg.get(key)
+    if raw is None:
+        return None
+    return _decode_header_safe(raw)
+
+
+def _infer_direction(account: AccountConfig, from_value: str | None) -> str:
+    if not from_value:
+        return "unknown"
+    if account.imap_username.lower() in from_value.lower():
+        return "sent"
+    return "incoming"
+
+
+def _folder_candidates(account: AccountConfig, include_subfolders: bool, roots: list[str] | None = None) -> list[str]:
+    seen: set[str] = set()
+    folders: list[str] = []
+
+    for folder in (roots or account.folders_read):
+        if folder not in seen:
+            folders.append(folder)
+            seen.add(folder)
+
+    if not include_subfolders:
+        return folders
+
+    expanded = list(folders)
+    with imap_connection(account) as client:
+        listed = client.list_folders()
+        for _, delimiter, name in listed:
+            folder_name = _to_text(name) or ""
+
+            for root in folders:
+                if folder_name == root:
+                    if folder_name not in seen:
+                        expanded.append(folder_name)
+                        seen.add(folder_name)
+                    break
+                if delimiter:
+                    prefix = f"{root}{_to_text(delimiter) or ''}"
+                    if folder_name.startswith(prefix):
+                        if folder_name not in seen:
+                            expanded.append(folder_name)
+                            seen.add(folder_name)
+                        break
+                if folder_name.startswith(f"{root}/") or folder_name.startswith(f"{root}."):
+                    if folder_name not in seen:
+                        expanded.append(folder_name)
+                        seen.add(folder_name)
+                    break
+    return expanded
+
+
+def sync_messages_to_cache(
+    db: Session,
+    account_id: str,
+    account: AccountConfig,
+    folders: list[str] | None,
+    since: datetime,
+    until: datetime,
+    include_subfolders: bool = True,
+    limit_per_folder: int = 500,
+) -> dict[str, Any]:
+    roots = [value for value in (folders or []) if value] or None
+    target_folders = _folder_candidates(account, include_subfolders=include_subfolders, roots=roots)
+    synced = 0
+    updated = 0
+    scanned_folders: list[str] = []
+
+    with imap_connection(account) as client:
+        for folder in target_folders:
+            try:
+                selected = client.select_folder(folder, readonly=True)
+            except Exception:
+                continue
+
+            scanned_folders.append(folder)
+            uidvalidity_raw = None
+            if isinstance(selected, dict):
+                uidvalidity_raw = selected.get(b"UIDVALIDITY") or selected.get("UIDVALIDITY")
+            uidvalidity = int(uidvalidity_raw or 0)
+            if uidvalidity <= 0:
+                continue
+
+            query = ["SINCE", since.date(), "BEFORE", until.date()]
+            uids = sorted(client.search(query))[-limit_per_folder:]
+            if not uids:
+                continue
+
+            fetch_fields = [b"INTERNALDATE", b"RFC822.SIZE", b"FLAGS", b"BODY.PEEK[HEADER]", b"BODY.PEEK[]"]
+            payload = client.fetch(uids, fetch_fields)
+
+            for uid in uids:
+                row = payload.get(uid, {})
+                raw_header = row.get(b"BODY[HEADER]", b"")
+                parsed_header = email.message_from_bytes(raw_header)
+                full_msg = email.message_from_bytes(row.get(b"BODY[]", b""))
+
+                from_value = _decode_address_header(parsed_header, "From")
+                to_value = _decode_address_header(parsed_header, "To")
+                cc_value = _decode_address_header(parsed_header, "Cc")
+                subject_value = _decode_address_header(parsed_header, "Subject")
+                body_text = _extract_text(full_msg, max_chars=12000)
+                internal_date = _normalize_dt(row.get(b"INTERNALDATE"))
+                message_id_header = _decode_address_header(parsed_header, "Message-ID")
+
+                existing = db.scalar(
+                    select(MessageIndex).where(
+                        MessageIndex.account_id == account_id,
+                        MessageIndex.folder == folder,
+                        MessageIndex.uidvalidity == uidvalidity,
+                        MessageIndex.uid == int(uid),
+                    )
+                )
+
+                if existing:
+                    target = existing
+                    updated += 1
+                else:
+                    target = MessageIndex(
+                        account_id=account_id,
+                        folder=folder,
+                        uidvalidity=uidvalidity,
+                        uid=int(uid),
+                    )
+                    db.add(target)
+
+                target.internal_date = internal_date
+                target.from_ = from_value
+                target.to = to_value
+                target.cc = cc_value
+                target.subject = subject_value
+                target.message_id_header = message_id_header
+                target.size = row.get(b"RFC822.SIZE")
+                target.flags = json.dumps([_to_text(v) for v in row.get(b"FLAGS", [])])
+                target.body_text = body_text
+                target.direction = _infer_direction(account, from_value)
+                synced += 1
+
+            db.commit()
+
+    return {
+        "account_id": account_id,
+        "folders_scanned": scanned_folders,
+        "messages_processed": synced,
+        "messages_updated": updated,
+        "since": since.isoformat(),
+        "until": until.isoformat(),
+    }

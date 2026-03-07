@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import and_, select
@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, load_accounts_config
 from app.db import SessionLocal
-from app.imap.sync import list_messages
+from app.imap.sync import list_messages, sync_messages_to_cache
 from app.models import Job, JobStatus, Lock
 
 
@@ -20,11 +20,24 @@ worker_started = False
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    # SQLite returns naive datetimes by default, so keep queue timestamps naive UTC
+    # to avoid offset-aware/naive comparison TypeError in worker checks.
+    return datetime.utcnow()
 
 
 def dedupe_key(payload: dict[str, Any]) -> str:
-    keys = ["account_id", "folder", "since", "until", "sync_mode", "output_format", "limit", "cursor", "operation"]
+    keys = [
+        "account_id",
+        "folders",
+        "since",
+        "until",
+        "sync_mode",
+        "output_format",
+        "limit",
+        "cursor",
+        "operation",
+        "include_subfolders",
+    ]
     return "|".join(f"{k}={payload.get(k)}" for k in keys)
 
 
@@ -40,7 +53,12 @@ def create_or_reuse_job(db: Session, api_key_id: str, payload: dict[str, Any]) -
     if existing:
         return existing
 
-    lock_key = f"account:{payload['account_id']}:folder:{payload['folder']}"
+    payload_folders = payload.get("folders") or []
+    if isinstance(payload_folders, list):
+        primary_folder = payload_folders[0] if payload_folders else payload.get("folder", "*")
+    else:
+        primary_folder = payload.get("folder", "*")
+    lock_key = f"account:{payload['account_id']}:folder:{primary_folder}"
     lock = db.get(Lock, lock_key)
     if lock and lock.expires_at > _utcnow():
         running = db.get(Job, lock.job_id)
@@ -50,7 +68,7 @@ def create_or_reuse_job(db: Session, api_key_id: str, payload: dict[str, Any]) -
     job = Job(
         api_key_id=api_key_id,
         account_id=payload["account_id"],
-        folder=payload["folder"],
+        folder=primary_folder,
         since=payload.get("since"),
         until=payload.get("until"),
         operation=payload.get("operation", "messages_list"),
@@ -97,15 +115,29 @@ async def worker_loop() -> None:
             account = cfg.accounts[job.account_id]
 
             params = json.loads(job.params_json or "{}")
-            data = list_messages(
-                account_id=job.account_id,
-                account=account,
-                folder=job.folder,
-                since=job.since,
-                until=job.until,
-                limit=int(params.get("limit", 50)),
-                output_format=params.get("output_format", "text"),
-            )
+            if job.operation == "sync_account":
+                folders_param = params.get("folders")
+                folders = folders_param if isinstance(folders_param, list) and folders_param else [job.folder]
+                data = sync_messages_to_cache(
+                    db=db,
+                    account_id=job.account_id,
+                    account=account,
+                    folders=folders,
+                    since=job.since,
+                    until=job.until,
+                    include_subfolders=bool(params.get("include_subfolders", True)),
+                    limit_per_folder=int(params.get("limit", 500)),
+                )
+            else:
+                data = list_messages(
+                    account_id=job.account_id,
+                    account=account,
+                    folder=job.folder,
+                    since=job.since,
+                    until=job.until,
+                    limit=int(params.get("limit", 50)),
+                    output_format=params.get("output_format", "text"),
+                )
             job.result_json = json.dumps(data)
             job.status = JobStatus.done
             job.progress = 100

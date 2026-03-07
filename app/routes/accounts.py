@@ -8,7 +8,11 @@ from app.config import load_accounts_config
 router = APIRouter(prefix="/v1/accounts", tags=["accounts"])
 
 
-@router.get("")
+@router.get(
+    "",
+    summary="List accessible accounts",
+    description="Return only accounts that are allowed for the current API key.",
+)
 def list_accounts(ctx: AuthContext = Depends(get_auth_context)):
     cfg = load_accounts_config()
     visible = []

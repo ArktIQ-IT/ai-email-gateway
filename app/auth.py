@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from argon2 import PasswordHasher
 from fastapi import Depends, Header, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.config import Settings, load_accounts_config
 
@@ -36,12 +37,15 @@ class RateLimiter:
 
 
 rl = RateLimiter()
+bearer_auth = HTTPBearer(auto_error=False)
 
 
-def get_auth_context(authorization: str = Header(default="")) -> AuthContext:
-    if not authorization.lower().startswith("bearer "):
+def get_auth_context(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_auth),
+) -> AuthContext:
+    if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing_bearer_token")
-    supplied = authorization.split(" ", 1)[1].strip()
+    supplied = credentials.credentials.strip()
     if not supplied:
         raise HTTPException(status_code=401, detail="empty_token")
 
