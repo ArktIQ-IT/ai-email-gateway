@@ -259,7 +259,7 @@ jobs:
           docker build -t ai-email-gateway:build -f Dockerfile .
 
       - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -271,7 +271,7 @@ jobs:
 
       - name: Run Trivy image scan
         id: trivy-scan
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           scan-type: 'image'
           scan-ref: 'ai-email-gateway:build'

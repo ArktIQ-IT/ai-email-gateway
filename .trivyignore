@@ -1,0 +1,9 @@
+# Trivy ignore file
+#
+# Add one vulnerability/misconfiguration ID per line to suppress specific findings.
+# Keep entries temporary and documented in PRs/issues.
+#
+# Examples:
+# CVE-2025-12345
+# GHSA-xxxx-xxxx-xxxx
+# AVD-DS-0001
