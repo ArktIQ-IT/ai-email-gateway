@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write   # allows pushing Git tags
   packages: write   # allows pushing to GHCR
+  pull-requests: read # allows reading PRs
 
 jobs:
   build-and-deploy:
