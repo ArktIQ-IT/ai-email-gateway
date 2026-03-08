@@ -23,7 +23,7 @@ def check_config(path: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Secure AI Email Gateway CLI")
+    parser = argparse.ArgumentParser(description="A safer AI e-mail gateway CLI")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("gen-key", help="Generate a random API key + Argon2 hash")

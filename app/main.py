@@ -8,10 +8,10 @@ from app.jobs.scheduler import ensure_auto_sync_started
 from app.routes import accounts, drafts, jobs, messages, sync
 
 app = FastAPI(
-    title="Secure AI e-mail gateway",
+    title="A safer AI e-mail gateway",
     version="0.1.0",
     description=(
-        "A secure IMAP-backed gateway for AI-assisted email workflows.\n\n"
+        "A safer IMAP-backed gateway for AI-assisted email workflows.\n\n"
         "This service syncs messages from configured mailboxes into a local cache, "
         "then exposes filtered read APIs and draft creation without exposing IMAP credentials "
         "to AI clients.\n\n"
