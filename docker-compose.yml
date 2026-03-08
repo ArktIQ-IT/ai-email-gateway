@@ -1,0 +1,29 @@
+services:
+  ai-email-gateway:
+    # container_name: ai-email-gateway
+    # Local development (build from local Dockerfile):
+    build: .
+    # Deployment option (pull prebuilt image from GHCR):
+    # image: ghcr.io/arktiq-it/ai-email-gateway:v1
+    # pull_policy: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./config/accounts.yaml:/app/config/accounts.yaml:ro
+      - ./data:/app/data
+    # Example Traefik publish configuration:
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.ai-email-gateway.rule=Host(`${AI_EMAIL_GATEWAY_DOMAIN}`)"
+    #   - "traefik.http.routers.ai-email-gateway.entrypoints=websecure"
+    #   - "traefik.http.routers.ai-email-gateway.tls.certresolver=zerosslCloudflare"
+    #   - "traefik.http.services.ai-email-gateway.loadbalancer.server.port=8000"
+    # networks:
+    #   - traefik
+    restart: unless-stopped
+
+# networks:
+#   traefik:
+#     external: true
