@@ -336,8 +336,8 @@ jobs:
         if: env.VULN_FOUND == 'false'
         run: |
           echo "Tagging image with version $VERSION ..."
-          docker tag ai-email-gateway:build ghcr.io/ArktIQ-IT/ai-email-gateway:$VERSION
-          docker tag ai-email-gateway:build ghcr.io/ArktIQ-IT/ai-email-gateway:v$MAJOR
+          docker tag ai-email-gateway:build ghcr.io/arktiq-it/ai-email-gateway:$VERSION
+          docker tag ai-email-gateway:build ghcr.io/arktiq-it/ai-email-gateway:v$MAJOR
 
       - name: Login to GitHub Container Registry
         if: env.VULN_FOUND == 'false'
@@ -349,8 +349,8 @@ jobs:
       - name: Push Docker image
         if: env.VULN_FOUND == 'false'
         run: |
-          docker push ghcr.io/ArktIQ-IT/ai-email-gateway:$VERSION
-          docker push ghcr.io/ArktIQ-IT/ai-email-gateway:v$MAJOR
+          docker push ghcr.io/arktiq-it/ai-email-gateway:$VERSION
+          docker push ghcr.io/arktiq-it/ai-email-gateway:v$MAJOR
 
       - name: Push new Git tag
         run: |
@@ -432,8 +432,8 @@ jobs:
 
           echo "" >> release_body.md
           echo "### Docker Tags" >> release_body.md
-          echo "- Stable: [ghcr.io/ArktIQ-IT/ai-email-gateway:$VERSION](https://ghcr.io/ArktIQ-IT/ai-email-gateway:$VERSION)" >> release_body.md
-          echo "- Major: [ghcr.io/ArktIQ-IT/ai-email-gateway:v$MAJOR](https://ghcr.io/ArktIQ-IT/ai-email-gateway:v$MAJOR)" >> release_body.md
+          echo "- Stable: [ghcr.io/arktiq-it/ai-email-gateway:$VERSION](https://ghcr.io/arktiq-it/ai-email-gateway:$VERSION)" >> release_body.md
+          echo "- Major: [ghcr.io/arktiq-it/ai-email-gateway:v$MAJOR](https://ghcr.io/arktiq-it/ai-email-gateway:v$MAJOR)" >> release_body.md
 
       - name: Create GitHub Release
         if: env.VULN_FOUND == 'false'
