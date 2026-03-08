@@ -1,15 +1,29 @@
 # Secure AI e-mail gateway (FastAPI + IMAP)
 
-A secure API gateway that lets AI systems read mailbox data and create drafts over IMAP **without exposing IMAP credentials**.
+A safer API gateway for AI-assisted email workflows: your AI agent can read mailbox context and create follow-up drafts over IMAP **without ever getting mailbox credentials or send-mail permissions**.
 
-## Threat model / security goals
+This service is designed for teams who want AI help with triage and follow-up preparation, while keeping final send control in a human inbox client.
+
+## Security goals
 - AI agents only get a gateway API key, never IMAP credentials.
-- API keys are stored as Argon2 hashes in YAML.
-- IMAP passwords are loaded only from environment variables.
+- API keys are verified against Argon2 hashes from config.
+- IMAP passwords are loaded from environment variables (`imap_password_env`), not from YAML.
 - No SMTP integration and no send-email endpoint.
+- Draft creation uses IMAP `APPEND` only (draft/write to mailbox folder, not send).
 - Raw RFC822 output is disabled by default (`ALLOW_RAW=false`).
-- Per-key rate limits + stricter job/read limits.
-- Job errors are sanitized and should never leak secrets.
+- Per-key auth rate limits and stricter job route limits.
+- Job errors are sanitized to error class codes (no traceback/secret payloads).
+
+## Security validation status (current codebase)
+The current implementation meets the goals above:
+- Auth and account scoping are enforced on all `/v1/*` data endpoints.
+- IMAP access uses login with env-provided password values.
+- There is no SMTP client usage and no route that sends mail.
+- Draft route writes via IMAP `APPEND` into a mailbox folder; it does not transmit mail to recipients.
+- Worker job failures persist sanitized error codes such as `job_failed:SomeError`.
+
+Operational caveat:
+- This project prevents API-triggered send in its own code path. Mailbox/provider-side automations or external tooling are outside this service boundary.
 
 ## Features
 - `/v1/accounts` account discovery per API key allowlist.
@@ -68,7 +82,7 @@ python -m app.cli check-config --config config/accounts.yaml
 ```
 
 ## API usage examples
-Start sync job (ingest IMAP -> local cache):
+Start manual sync job (ingest IMAP -> local cache):
 ```bash
 curl -X POST "http://localhost:8000/v1/accounts/domeneshop-main/sync" \
   -H "Authorization: Bearer <API_KEY>" \
@@ -127,6 +141,8 @@ curl -X POST "http://localhost:8000/v1/accounts/domeneshop-main/drafts" \
 - Run uvicorn with `--workers 1` unless you implement shared DB-backed worker claiming.
 - Automatic sync scheduler is built-in and runs every minute to enqueue due account sync jobs.
 - On startup, the scheduler always enqueues an immediate sync pass for enabled accounts.
+- For historical context, run a manual sync for the timespan you want your AI to use as starting context.
+  - Example: if you want the AI to understand prior conversation history before suggesting follow-ups, call `POST /v1/accounts/{account_id}/sync` with explicit `since`/`until` covering that historical period.
 - Per-account auto-sync behavior is configured in `config/accounts.yaml`:
   - `auto_sync_enabled` (default `true`)
   - `auto_sync_interval_minutes` (default `15`)
