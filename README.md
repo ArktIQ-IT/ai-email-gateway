@@ -4,6 +4,17 @@ A safer API gateway for AI-assisted email workflows: your AI agent can read mail
 
 This service is designed for teams who want AI help with triage and follow-up preparation, while keeping final send control in a human inbox client.
 
+## AgentSkills tool backend (recommended)
+This project is designed to be used as a **tool backend** for AgentSkills-compatible assistants (for example OpenClaw skills).
+
+- The skill package for this repo lives in `agentskills/` with entrypoint `agentskills/SKILL.md`.
+- The skill teaches the agent how to call this gateway for sync, triage, history Q&A, and draft creation.
+- The gateway API is the tool interface; the agent should not access mailbox credentials directly.
+- For strongest isolation, run this gateway on infrastructure separate from the agent runtime.
+
+**OpenClaw Skill:**  
+Find the OpenClaw skill at: [https://clawhub.ai/remimikalsen/a-safer-email-assistant](https://clawhub.ai/remimikalsen/a-safer-email-assistant)
+
 ## Security goals
 - AI agents only get a gateway API key, never IMAP credentials.
 - API keys are verified against Argon2 hashes from config.
