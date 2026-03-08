@@ -1,4 +1,4 @@
-# Secure AI e-mail gateway (FastAPI + IMAP)
+# A safer AI e-mail gateway
 
 A safer API gateway for AI-assisted email workflows: your AI agent can read mailbox context and create follow-up drafts over IMAP **without ever getting mailbox credentials or send-mail permissions**.
 

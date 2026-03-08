@@ -7,7 +7,7 @@ description: Uses the ai-email-gateway API to sync mailbox context, detect impor
 
 ## Purpose
 
-Use this skill to operate the secure email gateway API for AI-assisted email workflows:
+Use this skill to operate the safer email gateway API for AI-assisted email workflows:
 - manual sync/backfill
 - check for new important messages
 - correspondence/history questions
