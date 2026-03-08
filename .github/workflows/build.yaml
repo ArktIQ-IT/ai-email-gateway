@@ -113,9 +113,12 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add VERSION
-          git commit -m "ci: update VERSION file to $VERSION [skip ci]"
-
-          git push origin main
+          if git diff --cached --quiet; then
+            echo "VERSION is already up to date; skipping commit/push."
+          else
+            git commit -m "ci: update VERSION file to $VERSION [skip ci]"
+            git push origin main
+          fi
 
       - name: Set up Python for pip audit
         uses: actions/setup-python@v5
