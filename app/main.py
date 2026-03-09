@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI
 
@@ -16,10 +17,21 @@ from app.jobs.scheduler import ensure_auto_sync_started
 from app.routes import accounts, drafts, jobs, messages, sync
 
 logger = logging.getLogger(__name__)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+VERSION_FILE = PROJECT_ROOT / "VERSION"
+
+
+def load_app_version() -> str:
+    try:
+        version = VERSION_FILE.read_text(encoding="utf-8").strip()
+        return version or "0.0.0"
+    except OSError:
+        logger.warning("Could not read VERSION file at %s", VERSION_FILE)
+        return "0.0.0"
 
 app = FastAPI(
     title="A safer AI e-mail gateway",
-    version="0.1.0",
+    version=load_app_version(),
     description=(
         "A safer IMAP-backed gateway for AI-assisted email workflows.\n\n"
         "This service syncs messages from configured mailboxes into a local cache, "
