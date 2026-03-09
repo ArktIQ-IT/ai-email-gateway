@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import FastAPI
 
-from app.db import Base, engine, ensure_sqlite_schema_compat
+from app.db import (
+    Base,
+    backfill_message_index_metadata,
+    engine,
+    ensure_sqlite_schema_compat,
+    sqlite_message_index_needs_backfill,
+)
 from app.jobs.queue import ensure_worker_started
 from app.jobs.scheduler import ensure_auto_sync_started
 from app.routes import accounts, drafts, jobs, messages, sync
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="A safer AI e-mail gateway",
@@ -29,7 +39,11 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup() -> None:
     Base.metadata.create_all(bind=engine)
-    ensure_sqlite_schema_compat()
+    schema_changed = ensure_sqlite_schema_compat()
+    if schema_changed or sqlite_message_index_needs_backfill():
+        result = backfill_message_index_metadata()
+        if result["updated"] > 0:
+            logger.info("Backfilled message index metadata", extra=result)
     await ensure_worker_started()
     await ensure_auto_sync_started()
 

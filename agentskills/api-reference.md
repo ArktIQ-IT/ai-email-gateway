@@ -38,6 +38,8 @@ Example body:
 - `POST /v1/accounts/{account_id}/messages:list`
 
 Supported filters:
+- `exclude_suspicious` (default true, hides risky messages)
+- `include_raw_body` (default false)
 - `folders`
 - `since`, `until`
 - `senders`
@@ -46,6 +48,11 @@ Supported filters:
 - `direction` (`incoming`, `sent`, `unknown`, `all`)
 - `limit`, `offset`
 - `include_body`
+
+Notes:
+- Suspicious filtering is applied before pagination.
+- Response `total` reflects the filtered result set.
+- When `exclude_suspicious=true`, response includes `suspicious_filtered` to show how many matching rows were hidden.
 
 Example body:
 
@@ -93,3 +100,18 @@ Example body:
 
 - Format: `folder|uidvalidity|uid`
 - Source: returned as `id` by `messages:list`
+
+
+## Get one conversation thread
+
+- `POST /v1/accounts/{account_id}/messages:thread`
+
+```json
+{
+  "id": "INBOX|12345|67890",
+  "limit": 100,
+  "include_body": true
+}
+```
+
+Response includes `thread_key` and `safety` metadata per message.

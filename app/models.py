@@ -44,9 +44,14 @@ class MessageIndex(Base):
     cc: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     subject: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     message_id_header: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    in_reply_to_header: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    references_header: Mapped[str | None] = mapped_column(Text, nullable=True)
+    thread_key: Mapped[str | None] = mapped_column(String(512), index=True, nullable=True)
     size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     flags: Mapped[str | None] = mapped_column(Text, nullable=True)
     body_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    body_text_clean: Mapped[str | None] = mapped_column(Text, nullable=True)
+    safety_flags_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     direction: Mapped[str] = mapped_column(String(16), default="incoming")
 
     __table_args__ = (
