@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import AccountConfig, Settings
+from app.email_safety import analyze_prompt_injection, build_thread_key, clean_email_text
 from app.imap.client import imap_connection
 from app.models import MessageIndex
 
@@ -242,8 +243,13 @@ def sync_messages_to_cache(
                 cc_value = _decode_address_header(parsed_header, "Cc")
                 subject_value = _decode_address_header(parsed_header, "Subject")
                 body_text = _extract_text(full_msg, max_chars=12000)
+                body_text_clean = clean_email_text(body_text)
                 internal_date = _normalize_dt(row.get(b"INTERNALDATE"))
                 message_id_header = _decode_address_header(parsed_header, "Message-ID")
+                in_reply_to_header = _decode_address_header(parsed_header, "In-Reply-To")
+                references_header = _decode_address_header(parsed_header, "References")
+                thread_key = build_thread_key(message_id_header, in_reply_to_header, references_header, subject_value)
+                safety = analyze_prompt_injection(subject_value, body_text_clean)
 
                 existing = db.scalar(
                     select(MessageIndex).where(
@@ -272,9 +278,14 @@ def sync_messages_to_cache(
                 target.cc = cc_value
                 target.subject = subject_value
                 target.message_id_header = message_id_header
+                target.in_reply_to_header = in_reply_to_header
+                target.references_header = references_header
+                target.thread_key = thread_key
                 target.size = row.get(b"RFC822.SIZE")
                 target.flags = json.dumps([_to_text(v) for v in row.get(b"FLAGS", [])])
                 target.body_text = body_text
+                target.body_text_clean = body_text_clean
+                target.safety_flags_json = json.dumps(safety)
                 target.direction = _infer_direction(account, from_value)
                 synced += 1
 

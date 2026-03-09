@@ -162,8 +162,9 @@ def main() -> int:
         messages = listed.get("messages", [])
         seen_ids = set(state.get("seen_ids", []))
         unseen = [m for m in messages if m.get("id") not in seen_ids]
+        suspicious = [m for m in unseen if (m.get("safety") or {}).get("is_suspicious")]
 
-        print(json.dumps({"new_message_count": len(unseen), "messages": unseen}, indent=2))
+        print(json.dumps({"new_message_count": len(unseen), "suspicious_count": len(suspicious), "messages": unseen}, indent=2))
 
         seen_ids.update([m.get("id") for m in unseen if m.get("id")])
         state["seen_ids"] = sorted(seen_ids)

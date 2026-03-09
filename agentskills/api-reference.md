@@ -38,6 +38,8 @@ Example body:
 - `POST /v1/accounts/{account_id}/messages:list`
 
 Supported filters:
+- `exclude_suspicious` (default true, hides risky messages)
+- `include_raw_body` (default false)
 - `folders`
 - `since`, `until`
 - `senders`
@@ -93,3 +95,18 @@ Example body:
 
 - Format: `folder|uidvalidity|uid`
 - Source: returned as `id` by `messages:list`
+
+
+## Get one conversation thread
+
+- `POST /v1/accounts/{account_id}/messages:thread`
+
+```json
+{
+  "id": "INBOX|12345|67890",
+  "limit": 100,
+  "include_body": true
+}
+```
+
+Response includes `thread_key` and `safety` metadata per message.

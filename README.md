@@ -22,6 +22,7 @@ Find the OpenClaw skill at: [https://clawhub.ai/remimikalsen/a-safer-email-assis
 - No SMTP integration and no send-email endpoint.
 - Draft creation uses IMAP `APPEND` only (draft/write to mailbox folder, not send).
 - Raw RFC822 output is disabled by default (`ALLOW_RAW=false`).
+- Prompt-injection heuristics run during sync and suspicious messages are excluded by default in `messages:list`.
 - Per-key auth rate limits and stricter job route limits.
 - Job errors are sanitized to error class codes (no traceback/secret payloads).
 
@@ -39,6 +40,7 @@ Operational caveat:
 ## Features
 - `/v1/accounts` account discovery per API key allowlist.
 - Cached message reads (`messages:list`, `messages:get`) from SQLite.
+- Thread-scoped reads (`messages:thread`) to constrain AI context to a single conversation.
 - Sync jobs (`/sync`) to ingest mailbox history from configured folders (and optional subfolders) into cache.
 - Cache maintenance endpoints for deleting cached messages by ids or age/timespan.
 - Draft creation via IMAP `APPEND` into Drafts folder.
@@ -91,6 +93,14 @@ Validate config and env references:
 ```bash
 python -m app.cli check-config --config config/accounts.yaml
 ```
+
+
+### Conversation isolation and prompt-injection hardening
+- `messages:thread` returns only messages that belong to the same inferred thread key (`References`, `In-Reply-To`, fallback subject normalization).
+- Cache rows now store both `body_text` and `body_text_clean`; list/get APIs return cleaned body by default to reduce token load and encoded/code payload exposure.
+- Basic static checks run on subject + cleaned body and store a safety object (`score`, `findings`, `is_suspicious`); default language packs are English, Norwegian, German, and French.
+- `messages:list` excludes suspicious messages by default (`exclude_suspicious=true`) and reports `suspicious_filtered` in the response.
+- `messages:get` and `messages:thread` include the safety metadata so the agent can explain warnings.
 
 ## API usage examples
 Start manual sync job (ingest IMAP -> local cache):
@@ -186,3 +196,19 @@ curl -X POST "http://localhost:8000/v1/accounts/domeneshop-main/drafts" \
     - `pip install -r requirements.txt` updates/adds required packages but can leave extra, previously installed packages in the environment.
     - `pip-sync requirements.txt` (from `pip-tools`) makes the environment match the lockfile exactly by removing packages not in `requirements.txt`.
   - In Docker, install from the locked file only; do not install from `requirements.in` during image build.
+
+### Thread-only context retrieval
+```bash
+curl -X POST "http://localhost:8000/v1/accounts/domeneshop-main/messages:thread" \
+  -H "Authorization: Bearer <API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"id":"INBOX|12345|67890","limit":100,"include_body":true}'
+```
+
+### Include suspicious messages intentionally (for review queue)
+```bash
+curl -X POST "http://localhost:8000/v1/accounts/domeneshop-main/messages:list" \
+  -H "Authorization: Bearer <API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"since":"2026-01-01T00:00:00Z","direction":"incoming","exclude_suspicious":false}'
+```
