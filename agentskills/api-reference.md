@@ -49,6 +49,11 @@ Supported filters:
 - `limit`, `offset`
 - `include_body`
 
+Notes:
+- Suspicious filtering is applied before pagination.
+- Response `total` reflects the filtered result set.
+- When `exclude_suspicious=true`, response includes `suspicious_filtered` to show how many matching rows were hidden.
+
 Example body:
 
 ```json

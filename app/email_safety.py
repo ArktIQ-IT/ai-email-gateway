@@ -41,6 +41,7 @@ _LONG_UNBROKEN = re.compile(r"[A-Za-z0-9+/=]{180,}")
 _CODE_FENCE = re.compile(r"```.*?```", re.DOTALL)
 _HTML_TAG = re.compile(r"<[^>]+>")
 _WHITESPACE = re.compile(r"\s+")
+_MESSAGE_ID = re.compile(r"<([^<>]+)>")
 
 
 def _build_injection_patterns(languages: tuple[str, ...] = DEFAULT_INJECTION_LANGUAGES) -> list[tuple[str, re.Pattern[str]]]:
@@ -98,17 +99,40 @@ def normalize_subject_for_thread(subject: str | None) -> str | None:
     return current or None
 
 
-def normalize_message_id(value: str | None) -> str | None:
+def _normalize_message_id_token(value: str | None) -> str | None:
     if not value:
         return None
     stripped = value.strip().strip("<>")
     return stripped.lower() or None
 
 
+def extract_message_ids(value: str | None) -> list[str]:
+    if not value:
+        return []
+    extracted = [_normalize_message_id_token(v) for v in _MESSAGE_ID.findall(value)]
+    normalized = [v for v in extracted if v]
+    if normalized:
+        return normalized
+    fallback = _normalize_message_id_token(value)
+    if not fallback:
+        return []
+    if " " in fallback:
+        return []
+    return [fallback]
+
+
+def normalize_message_id(value: str | None) -> str | None:
+    ids = extract_message_ids(value)
+    if ids:
+        return ids[0]
+    return None
+
+
 def build_thread_key(message_id: str | None, in_reply_to: str | None, references: str | None, subject: str | None) -> str:
-    refs = [normalize_message_id(v) for v in re.findall(r"<([^>]+)>", references or "") if normalize_message_id(v)]
+    refs = extract_message_ids(references)
     root_ref = refs[0] if refs else None
-    in_reply = normalize_message_id(in_reply_to)
+    in_reply_candidates = extract_message_ids(in_reply_to)
+    in_reply = in_reply_candidates[0] if in_reply_candidates else None
     msg_id = normalize_message_id(message_id)
     subj = normalize_subject_for_thread(subject)
 

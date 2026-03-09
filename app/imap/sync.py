@@ -285,7 +285,7 @@ def sync_messages_to_cache(
                 target.flags = json.dumps([_to_text(v) for v in row.get(b"FLAGS", [])])
                 target.body_text = body_text
                 target.body_text_clean = body_text_clean
-                target.safety_flags_json = json.dumps(safety)
+                target.safety_flags_json = json.dumps(safety, separators=(",", ":"))
                 target.direction = _infer_direction(account, from_value)
                 synced += 1
 

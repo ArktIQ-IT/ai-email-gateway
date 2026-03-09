@@ -6,7 +6,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, not_, or_, select
 from sqlalchemy.orm import Session
 
 from app.auth import AuthContext, get_auth_context
@@ -139,17 +139,25 @@ def list_cached_messages(
         stmt = stmt.where(text_expr)
         count_stmt = count_stmt.where(text_expr)
 
+    raw_count_stmt = count_stmt
+    if req.exclude_suspicious:
+        suspicious_expr = or_(
+            MessageIndex.safety_flags_json.like('%"is_suspicious":true%'),
+            MessageIndex.safety_flags_json.like('%"is_suspicious": true%'),
+        )
+        safe_expr = or_(MessageIndex.safety_flags_json.is_(None), not_(suspicious_expr))
+        stmt = stmt.where(safe_expr)
+        count_stmt = count_stmt.where(safe_expr)
+
     rows = db.scalars(stmt.order_by(MessageIndex.internal_date.desc()).offset(req.offset).limit(req.limit)).all()
     total = db.scalar(count_stmt) or 0
+    raw_total = db.scalar(raw_count_stmt) or total
 
     messages = []
-    suspicious_filtered = 0
     for row in rows:
-        safety = json.loads(row.safety_flags_json or '{"is_suspicious":false}')
-        if req.exclude_suspicious and safety.get("is_suspicious"):
-            suspicious_filtered += 1
-            continue
         messages.append(_serialize_row(row, include_body=req.include_body, include_raw_body=req.include_raw_body))
+
+    suspicious_filtered = max(raw_total - total, 0) if req.exclude_suspicious else 0
 
     return {
         "messages": messages,
@@ -228,7 +236,13 @@ def get_thread_messages(
 
     rows = db.scalars(
         select(MessageIndex)
-        .where(MessageIndex.account_id == account_id, MessageIndex.thread_key == thread_key)
+        .where(
+            MessageIndex.account_id == account_id,
+            or_(
+                MessageIndex.thread_key == thread_key,
+                MessageIndex.id == seed.id,
+            ),
+        )
         .order_by(MessageIndex.internal_date.asc())
         .limit(req.limit)
     ).all()

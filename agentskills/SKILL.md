@@ -1,6 +1,10 @@
 ---
-name: a-safer-email-assistant
-description: Uses the ai-email-gateway API to sync mailbox context, detect important new messages, answer correspondence/history questions, and create reply drafts without sending email. Requires self-hosting https://github.com/ArktIQ-IT/ai-email-gateway on a separate server from OpenClaw to guarantee OpenClaw cannot take over inbox access. Use when the user asks to check email, triage important messages, summarize history with a person, or draft responses.
+name: A safer e-mail asssitant
+slug: a-safer-email-assistant
+version: 1.0.1
+homepage: https://github.com/ArktIQ-IT/ai-email-gateway
+description: Sync mailbox context, triage important messages, answer history questions, and create safe draft replies through a self-hosted ai-email-gateway API.
+metadata: {"clawdbot":{"primaryCredential":"GATEWAY_API_KEY","requires":{"env":["GATEWAY_BASE_URL","GATEWAY_API_KEY","ACCOUNT_ID"],"optionalEnv":["ACCOUNT_IDS","STATE_FILE","SYNC_FOLDERS","INCLUDE_SUBFOLDERS","LIMIT_PER_FOLDER","LIST_LIMIT","REPORT_SUSPICIOUS_COUNT"]},"os":["linux","darwin","win32"]}}
 ---
 
 # A safer e-mail assistant
@@ -19,7 +23,23 @@ Never send email. This gateway supports draft creation only.
 
 - `GATEWAY_BASE_URL` (example: `http://localhost:8000`)
 - `GATEWAY_API_KEY` (bearer token)
-- `ACCOUNT_ID` (gateway account id)
+- `ACCOUNT_ID` (gateway account id; used when `ACCOUNT_IDS` is not set)
+
+Optional:
+- `ACCOUNT_IDS` (comma-separated account ids; multi-account mode for helper scripts)
+
+## External Endpoints
+
+| Endpoint | Purpose | Auth |
+|---|---|---|
+| `https://github.com/ArktIQ-IT/ai-email-gateway` | Source code and deployment docs | none |
+| `${GATEWAY_BASE_URL}` | Self-hosted gateway API (`/v1/accounts`, `/sync`, `/messages:*`, `/drafts`) | bearer API key |
+
+## Data Storage
+
+- Script state file: `.agent_state_email.json` (or `STATE_FILE` override).
+- Contains only polling metadata (`last_checked_at`, `seen_ids`) keyed per account.
+- Ask user before changing state file location.
 
 ## Core workflow rules
 
@@ -43,7 +63,7 @@ Never send email. This gateway supports draft creation only.
 
 1. Load local state (`last_checked_at`, `seen_ids`) per account.
 2. Trigger manual sync for `[last_checked_at, now)`.
-3. Query `messages:list` for `direction="incoming"` and same timespan.
+3. Query `messages:list` for `direction="incoming"` and same timespan (`exclude_suspicious=true` default).
 4. Filter to unseen ids.
 5. If no unseen ids, stop with "no new messages".
 6. Evaluate importance only for unseen messages using user criteria.
@@ -111,3 +131,4 @@ When completing tasks, prefer this format:
 - Importance rubric template: [prompts/importance-classifier.md](prompts/importance-classifier.md)
 - Draft writing template: [prompts/drafting-style.md](prompts/drafting-style.md)
 - Monitoring script scaffold: [scripts/check_new_messages.py](scripts/check_new_messages.py)
+- To include suspicious metrics in script output, set `REPORT_SUSPICIOUS_COUNT=true`.

@@ -101,6 +101,7 @@ python -m app.cli check-config --config config/accounts.yaml
 - Basic static checks run on subject + cleaned body and store a safety object (`score`, `findings`, `is_suspicious`); default language packs are English, Norwegian, German, and French.
 - `messages:list` excludes suspicious messages by default (`exclude_suspicious=true`) and reports `suspicious_filtered` in the response.
 - `messages:get` and `messages:thread` include the safety metadata so the agent can explain warnings.
+- On startup, schema compatibility checks automatically add new cache columns and backfill missing thread/safety fields for existing rows.
 
 ## API usage examples
 Start manual sync job (ingest IMAP -> local cache):

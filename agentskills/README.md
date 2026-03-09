@@ -9,3 +9,7 @@ Each skill folder includes:
 
 Available skills:
 - `email-gateway-assistant`: workflows for syncing, triage, history Q&A, and draft creation with this gateway API.
+
+Notes:
+- Skill homepage/source: https://github.com/ArktIQ-IT/ai-email-gateway
+- Required env for runtime: `GATEWAY_BASE_URL`, `GATEWAY_API_KEY`, and `ACCOUNT_ID` (or `ACCOUNT_IDS` for multi-account scripts).
