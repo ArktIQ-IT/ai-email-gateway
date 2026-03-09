@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir --require-hashes -r requirements.txt
 
 COPY app ./app
 COPY config ./config
+COPY VERSION ./VERSION
 COPY .env.example ./.env.example
 
 RUN mkdir -p /app/data
